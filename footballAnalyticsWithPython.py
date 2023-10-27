@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[48]:
+# In[1]:
 
 
 import pandas as pd
@@ -22,7 +22,7 @@ pd.set_option('display.max_columns', None)
 
 # # Mapping/Variable Creation
 
-# In[49]:
+# In[2]:
 
 
 #mapping = pd.read_excel('M:/pythFiles/Football/teamMappings.xlsx')
@@ -182,14 +182,16 @@ pbp_py_hist_short = sns.displot(data=pbp_py_p_short, binwidth=1, x="passing_yard
 
 # ## Tackles & Assists Data
 
-# In[2]:
+# In[3]:
 
 
 df = nfl.import_pbp_data([2023])
 df1 = df.loc[df['play_type'].isin(['pass', 'run'])].reset_index()
 
 
-# In[69]:
+# ### Solo Tackles
+
+# In[4]:
 
 
 s1 = df1[['week', 'game_id', 'solo_tackle_1_team', 'solo_tackle_1_player_name', 'solo_tackle_1_player_id']].copy()
@@ -204,7 +206,7 @@ tmp = pd.concat([s1,s2])
 tmp.head()
 
 
-# In[70]:
+# In[5]:
 
 
 #Get counts each game
@@ -224,7 +226,9 @@ soloFinal = pd.merge(solo, soloT, left_on='solo_tackle_player_id', right_on='sol
 soloFinal
 
 
-# In[71]:
+# ### Tackle With Assists
+
+# In[6]:
 
 
 ta1 = df1[['week', 'game_id', 'tackle_with_assist_1_team', 'tackle_with_assist_1_player_name', 'tackle_with_assist_1_player_id']].copy() 
@@ -239,7 +243,7 @@ tmp3 = pd.concat([ta1, ta2])
 tmp3.head (10)
 
 
-# In[72]:
+# In[7]:
 
 
 #Get counts each game
@@ -251,13 +255,7 @@ twaFinal.columns = ['tackle_with_assist_player_name', 'tackle_with_assist_player
 twaFinal
 
 
-# In[74]:
-
-
-comb
-
-
-# In[75]:
+# In[8]:
 
 
 #Combine solo and tackle with
@@ -275,7 +273,9 @@ comb4 = pd.merge(comb1, comb3, left_on='solo_tackle_player_id', right_on='solo_t
 comb4
 
 
-# In[76]:
+# ### Assists
+
+# In[9]:
 
 
 a1 = df1[['week', 'game_id', 'assist_tackle_1_team', 'assist_tackle_1_player_name', 'assist_tackle_1_player_id']].copy() 
@@ -298,18 +298,18 @@ tmp2 = pd.concat([a1,a2,a3,a4])
 tmp2.head()
 
 
-# In[77]:
+# In[15]:
 
 
-ast = tmp2.groupby(['assist_tackle_player_name', 'assist_tackle_player_id', 'game_id']).agg({'assist_tackle': ['count']})
+ast = tmp2.groupby(['assist_tackle_player_name', 'assist_tackle_team', 'assist_tackle_player_id', 'game_id']).agg({'assist_tackle': ['count']})
 #Drop multi-index 
 assist =  ast.reset_index()
 #rename columns
-assist.columns =  ['assist_tackle_player_name', 'assist_tackle_player_id', 'game_id', 'assist_tackles']
+assist.columns =  ['assist_tackle_player_name', 'assist_tackle_team', 'assist_tackle_player_id', 'game_id', 'assist_tackles']
 #Get Average by player 
-assistA = assist.groupby(['assist_tackle_player_name', 'assist_tackle_player_id']).agg({'assist_tackles': ['mean']}) 
+assistA = assist.groupby(['assist_tackle_player_name', 'assist_tackle_team', 'assist_tackle_player_id']).agg({'assist_tackles': ['mean']}) 
 assistA =  assistA.reset_index()
-assistA.columns = ['assist_tackle_player_name', 'assist_tackle_player_id', 'assist_tackles_mean']
+assistA.columns = ['assist_tackle_player_name','assist_tackle_team', 'assist_tackle_player_id', 'assist_tackles_mean']
 #Drop player Name 
 assistT = assistA[[ 'assist_tackle_player_id', 'assist_tackles_mean']].copy()
 #Merge the Mean
@@ -317,24 +317,33 @@ assistFinal = pd.merge(assist, assistT, left_on='assist_tackle_player_id', right
 assistFinal
 
 
-# In[78]:
+# In[27]:
 
 
 #Combine solo and assist
-tmpfnl = pd.merge(comb4, assistFinal, left_on=['solo_tackle_player_id', 'game_id'], right_on=[ 'assist_tackle_player_id', 'game_id'], how='left')
-fnl = tmpfnl[['solo_tackle_player_name', 'solo_tackle_team', 'solo_tackle_player_id', 'game_id', 'solo_tackles', 'solo_tackles_mean', 'tacklewithAssists', 'combined', 'combinedMean', 'assist_tackles', 'assist_tackles_mean']].copy()
+tmpfnl = pd.merge(comb4, assistFinal, left_on=['solo_tackle_player_id', 'game_id'], right_on=[ 'assist_tackle_player_id', 'game_id'], how='outer')
+fnl = tmpfnl[['solo_tackle_player_name', 'solo_tackle_team', 'solo_tackle_player_id', 'game_id', 'assist_tackle_player_name', 'assist_tackle_player_id', 'assist_tackle_team', 'solo_tackles', 'solo_tackles_mean', 'tacklewithAssists', 'combined', 'combinedMean', 'assist_tackles', 'assist_tackles_mean']].copy()
 fnl['assist_tackles'] =  fnl['assist_tackles'].fillna(0)
 fnl['assist_tackles_mean'] =  fnl['assist_tackles_mean'].fillna(0)
+fnl['solo_tackles'] =  fnl['solo_tackles'].fillna(0)
+fnl['solo_tackles_mean'] =  fnl['solo_tackles_mean'].fillna(0)
+fnl['combined'] =  fnl['combined'].fillna(0)
 fnl['tackleAssistsCombined'] = fnl['combined'] + fnl['assist_tackles']
 fnl['week'] = weekVarDecPvs
+fnl['solo_tackle_player_name'].fillna(fnl['assist_tackle_player_name'], inplace=True)
+fnl['solo_tackle_team'].fillna(fnl['assist_tackle_team'], inplace=True)
+fnl['solo_tackle_player_id'].fillna(fnl['assist_tackle_player_id'], inplace=True)
 gm = pd.DataFrame(fnl.solo_tackle_player_id.value_counts())
 gm = gm.reset_index()
 gm.columns = ['solo_tackle_player_id', 'gamesPlayed']
 final = pd.merge(fnl, gm, left_on='solo_tackle_player_id', right_on='solo_tackle_player_id',how='left')
+# final['solo_tackle_player_name'].fillna(final['assist_tackle_player_name'], inplace=True)
+# final['solo_tackle_team'].fillna(final['assist_tackle_team'], inplace=True)
+# final['solo_tackle_player_id'].fillna(final['assist_tackle_player_id'], inplace=True)
 final
 
 
-# In[84]:
+# In[28]:
 
 
 final.loc[final['solo_tackle_player_name'].isin(['Z.Smith'])]
@@ -342,14 +351,14 @@ final.loc[final['solo_tackle_player_name'].isin(['Z.Smith'])]
 
 # ## Import List (In Progress)
 
-# In[85]:
+# In[29]:
 
 
 pBase = baseDir + 'playerBase.xlsx'
 pMap = baseDir + 'playerMap.xlsx'
 
 
-# In[86]:
+# In[30]:
 
 
 base = pd.read_excel(pBase)
@@ -369,7 +378,7 @@ base["propType"] = base.groupby("dkPlayer").cumcount()+1
 len(base)
 
 
-# In[87]:
+# In[31]:
 
 
 dk = pd.merge(mapping, base, left_on='Dkname', right_on='dkPlayer')
@@ -389,18 +398,24 @@ len(dkC)
 dk.NFLpyName.value_counts()
 
 
-# In[90]:
+# In[34]:
 
 
 dkT1 = pd.merge(final, dkT, left_on='solo_tackle_player_id', right_on='NFLpyID')
 dkT1['overFlag'] = np.where(dkT1['dkOVER'] > dkT1['solo_tackles'], 0, 1)
 dkT2 = dkT1.groupby(['solo_tackle_player_id']).agg({'overFlag' : ['mean']})
 dkTF = pd.merge(dkT1, dkT2, left_on='solo_tackle_player_id', right_on='solo_tackle_player_id')
-dkTF.columns = ['solo_tackle_player_name', 'solo_tackle_team', 'solo_tackle_player_id','game_id','solo_tackles','solo_tackles_mean','tacklewithAssists','combined','combinedMean','assist_tackles','assist_tackles_mean','tackleAssistsCombined',
-                'week','gamesPlayed','NFLpyName','NFLpyID','Dkname','leagueName','pyTeam','dkPlayer','dkOVER',   'dkUNDER','propType','overFlag','pctGamesOver']
+dkTF.columns = ['solo_tackle_player_name', 'solo_tackle_team', 'solo_tackle_player_id','game_id','assist_tackle_player_name', 'assist_tackle_player_id','assist_tackle_team','solo_tackles','solo_tackles_mean','tacklewithAssists','combined','combinedMean',
+                'assist_tackles','assist_tackles_mean','tackleAssistsCombined','week','gamesPlayed','NFLpyName','NFLpyID','Dkname','leagueName','pyTeam','dkPlayer','dkOVER',   'dkUNDER','propType','overFlag','pctGamesOver']
 
 
-# In[92]:
+# In[33]:
+
+
+dkTF.columns
+
+
+# In[35]:
 
 
 dkTF.loc[dkTF['pctGamesOver'] == 1]
